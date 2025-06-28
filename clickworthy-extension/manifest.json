@@ -1,0 +1,12 @@
+{
+    "manifest_version": 3,
+    "name": "ClickWorthy",
+    "version": "0.1.0",
+    "description": "Detects clickbait on YouTube videos.",
+    "content_scripts": [
+      {
+        "matches": ["https://www.youtube.com/*"],
+        "js": ["content.js"]
+      }
+    ]
+  }
