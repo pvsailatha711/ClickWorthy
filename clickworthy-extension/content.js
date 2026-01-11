@@ -1,4 +1,3 @@
-console.log("ClickWorthy content script is running!");
 
 // --- Backend API URL ---
 const BACKEND_ANALYZE_API_URL = "http://localhost:8080/analyze-content";
@@ -195,55 +194,61 @@ document.head.appendChild(advancedStyle);
 function applyHoverEffect(container, scores) {
   // Calculate overall score (average of title and image scores)
   const overallScore = (scores.titleScore + scores.imageScore) / 2;
-  
+
   let borderClass = '';
   let borderColor = '';
-  
-  if (overallScore === 0) {
+
+  // Stricter thresholds for better clickbait detection
+  if (overallScore < 0.15) {
     borderClass = 'trustworthy';
-    borderColor = '#4CAF50';
-  } else if (overallScore > 0 && overallScore <= 0.2) {
-    borderClass = 'trustworthy';
-    borderColor = '#4CAF50';
-  } else if (overallScore > 0.2 && overallScore <= 0.4) {
+    borderColor = '#4CAF50'; // Green - Low clickbait
+  } else if (overallScore >= 0.15 && overallScore < 0.35) {
     borderClass = 'suspicious';
-    borderColor = '#FF9800';
-  } else if (overallScore > 0.4 && overallScore <= 0.6) {
-    borderClass = 'suspicious';
-    borderColor = '#FF9800';
-  } else if (overallScore > 0.6) {
+    borderColor = '#FF9800'; // Orange - Moderate clickbait
+  } else {
     borderClass = 'clickbait';
-    borderColor = '#F44336';
+    borderColor = '#F44336'; // Red - High clickbait
   }
 
   // Remove any existing score badges
   const existingBadges = container.querySelectorAll('.clickworthy-badge');
   existingBadges.forEach(badge => badge.remove());
 
+  // Remove any existing borders and classes from this container
+  container.style.border = '';
+  container.style.borderRadius = '';
+  container.classList.remove('clickworthy-border', 'trustworthy', 'suspicious', 'clickbait');
+
   // Ensure unique handlers are applied to prevent multiple calls
   container.removeEventListener('mouseover', container.__mouseoverHandler__);
   container.removeEventListener('mouseout', container.__mouseoutHandler__);
   container.removeEventListener('mousemove', container.__mousemoveHandler__);
 
-  container.__mouseoverHandler__ = function(e) {
+  container.__mouseoverHandler__ = function (e) {
+    // Remove any existing borders first
+    this.style.border = '';
+    this.style.borderRadius = '';
+    this.classList.remove('clickworthy-border', 'trustworthy', 'suspicious', 'clickbait');
+
+    // Apply new border
     this.style.border = `3px solid ${borderColor}`;
     this.style.borderRadius = '8px';
     this.classList.add('clickworthy-border', borderClass);
   };
-  
-  container.__mouseoutHandler__ = function() {
+
+  container.__mouseoutHandler__ = function () {
     this.style.border = '';
     this.style.borderRadius = '';
     this.classList.remove('clickworthy-border', 'trustworthy', 'suspicious', 'clickbait');
-    
+
     // Remove tooltip if it exists
     const tooltip = document.getElementById('clickworthy-tooltip');
     if (tooltip) {
       tooltip.remove();
     }
   };
-  
-  container.__mousemoveHandler__ = function(e) {
+
+  container.__mousemoveHandler__ = function (e) {
     // TOOLTIP DISABLED - No tooltip movement
   };
 
@@ -254,22 +259,22 @@ function applyHoverEffect(container, scores) {
   // Apply initial border briefly if score is already cached on page load
   const requestId = container.dataset.requestId;
   if (requestId && cachedScores.has(requestId) && cachedScores.get(requestId) !== null) {
-      const cachedScoresData = cachedScores.get(requestId);
-      const initialOverallScore = (cachedScoresData.titleScore + cachedScoresData.imageScore) / 2;
-      let initialBorderColor = '';
-      if (initialOverallScore === 0) { initialBorderColor = '#4CAF50'; }
-      else if (initialOverallScore > 0 && initialOverallScore <= 0.2) { initialBorderColor = '#4CAF50'; }
-      else if (initialOverallScore > 0.2 && initialOverallScore <= 0.4) { initialBorderColor = '#FF9800'; }
-      else if (initialOverallScore > 0.4 && initialOverallScore <= 0.6) { initialBorderColor = '#FF9800'; }
-      else if (initialOverallScore > 0.6) { initialBorderColor = '#F44336'; }
-      
-      container.style.border = `3px solid ${initialBorderColor}`;
-      container.style.borderRadius = '8px';
-      setTimeout(() => {
-           container.style.border = '';
-           container.style.borderRadius = '';
-       }, 2000); // Remove after a short delay
-   }
+    const cachedScoresData = cachedScores.get(requestId);
+    const initialOverallScore = (cachedScoresData.titleScore + cachedScoresData.imageScore) / 2;
+    let initialBorderColor = '';
+    if (initialOverallScore === 0) { initialBorderColor = '#4CAF50'; }
+    else if (initialOverallScore > 0 && initialOverallScore <= 0.2) { initialBorderColor = '#4CAF50'; }
+    else if (initialOverallScore > 0.2 && initialOverallScore <= 0.4) { initialBorderColor = '#FF9800'; }
+    else if (initialOverallScore > 0.4 && initialOverallScore <= 0.6) { initialBorderColor = '#FF9800'; }
+    else if (initialOverallScore > 0.6) { initialBorderColor = '#F44336'; }
+
+    container.style.border = `3px solid ${initialBorderColor}`;
+    container.style.borderRadius = '8px';
+    setTimeout(() => {
+      container.style.border = '';
+      container.style.borderRadius = '';
+    }, 2000); // Remove after a short delay
+  }
 }
 
 // Function to remove any floating score elements
@@ -278,27 +283,24 @@ function removeFloatingScores() {
   const tooltip = document.getElementById('clickworthy-tooltip');
   if (tooltip) {
     tooltip.remove();
-    console.log('ClickWorthy: Removed clickworthy-tooltip element');
   }
-  
+
   // Remove any div with "ClickWorthy Analysis" text
   const allDivs = document.querySelectorAll('div');
   allDivs.forEach(div => {
     if (div.textContent && div.textContent.includes('ClickWorthy Analysis')) {
       div.remove();
-      console.log('ClickWorthy: Removed ClickWorthy Analysis tooltip');
     }
   });
-  
+
   // Remove any element with tooltip-like styling that contains ClickWorthy text
   const tooltipElements = document.querySelectorAll('div[style*="position: absolute"], div[style*="position: fixed"]');
   tooltipElements.forEach(element => {
     if (element.textContent && element.textContent.includes('ClickWorthy')) {
       element.remove();
-      console.log('ClickWorthy: Removed positioned ClickWorthy element');
     }
   });
-  
+
   // Remove any element with high z-index that contains ClickWorthy text
   const allElements = document.querySelectorAll('*');
   allElements.forEach(element => {
@@ -306,7 +308,6 @@ function removeFloatingScores() {
     const zIndex = parseInt(style.zIndex);
     if (zIndex > 1000 && element.textContent && element.textContent.includes('ClickWorthy')) {
       element.remove();
-      console.log('ClickWorthy: Removed high z-index ClickWorthy element');
     }
   });
 }
@@ -319,15 +320,15 @@ function cleanupExistingBadges() {
     const badges = container.querySelectorAll('.clickworthy-badge');
     badges.forEach(badge => badge.remove());
   });
-  
+
   // Remove any badges that might be floating in the body
   const bodyBadges = document.querySelectorAll('.clickworthy-badge');
   bodyBadges.forEach(badge => badge.remove());
-  
+
   // Remove any tooltips that might be stuck
   const tooltips = document.querySelectorAll('#clickworthy-tooltip');
   tooltips.forEach(tooltip => tooltip.remove());
-  
+
   // Remove any elements with specific score-related classes or IDs
   const scoreElements = document.querySelectorAll('[class*="score"], [id*="score"], [class*="clickworthy"], [id*="clickworthy"]');
   scoreElements.forEach(element => {
@@ -335,11 +336,9 @@ function cleanupExistingBadges() {
       element.remove();
     }
   });
-  
+
   // Call floating scores cleanup
   removeFloatingScores();
-  
-  console.log(`ClickWorthy: Cleaned up existing elements`);
 }
 
 // Immediate cleanup function for stuck tooltips
@@ -350,27 +349,24 @@ function removeStuckTooltips() {
     const style = window.getComputedStyle(div);
     const isPositioned = style.position === 'absolute' || style.position === 'fixed';
     const hasClickworthyContent = div.textContent && div.textContent.includes('ClickWorthy');
-    
+
     if (isPositioned && hasClickworthyContent) {
       div.remove();
-      console.log('ClickWorthy: Removed stuck tooltip div');
     }
   });
-  
+
   // Specifically target the "ClickWorthy Analysis" tooltip
   const analysisTooltips = document.querySelectorAll('div');
   analysisTooltips.forEach(div => {
     if (div.textContent && div.textContent.includes('ClickWorthy Analysis')) {
       div.remove();
-      console.log('ClickWorthy: Removed ClickWorthy Analysis tooltip');
     }
   });
-  
+
   // Remove any element with the exact tooltip styling
   const tooltipElements = document.querySelectorAll('div[style*="position: absolute"][style*="background: rgba(0, 0, 0, 0.9)"][style*="z-index: 10000"]');
   tooltipElements.forEach(element => {
     element.remove();
-    console.log('ClickWorthy: Removed tooltip with specific styling');
   });
 }
 
@@ -393,7 +389,7 @@ function removeClickworthyTooltip() {
   if (tooltipById) {
     tooltipById.remove();
   }
-  
+
   // Remove by text content
   const allDivs = document.querySelectorAll('div');
   allDivs.forEach(div => {
@@ -401,14 +397,14 @@ function removeClickworthyTooltip() {
       div.remove();
     }
   });
-  
+
   // Remove by styling (black background, high z-index)
   const tooltipElements = document.querySelectorAll('div');
   tooltipElements.forEach(div => {
     const style = window.getComputedStyle(div);
-    if (style.backgroundColor.includes('rgba(0, 0, 0, 0.9)') && 
-        parseInt(style.zIndex) > 1000 && 
-        div.textContent && div.textContent.includes('ClickWorthy')) {
+    if (style.backgroundColor.includes('rgba(0, 0, 0, 0.9)') &&
+      parseInt(style.zIndex) > 1000 &&
+      div.textContent && div.textContent.includes('ClickWorthy')) {
       div.remove();
     }
   });
@@ -451,17 +447,16 @@ function sendAnalysisRequest(videoData, containerElement) {
     },
     body: JSON.stringify(videoData)
   })
-  .then(response => response.json())
-  .then(data => {
-    if (data.status === "received") {
-      console.log(`ClickWorthy: Request ${data.requestId} sent to backend. Polling for score...`);
-      // Start polling for the score
-      pollForScore(data.requestId, containerElement);
-    } else {
-      console.error(`ClickWorthy: Error sending request to backend for ${videoData.title}:`, data.message);
-    }
-  })
-  .catch(error => console.error(`ClickWorthy: Network error sending request for ${videoData.title}:`, error));
+    .then(response => response.json())
+    .then(data => {
+      if (data.status === "received") {
+        // Start polling for the score
+        pollForScore(data.requestId, containerElement);
+      } else {
+        console.error(`ClickWorthy: Error sending request to backend for ${videoData.title}:`, data.message);
+      }
+    })
+    .catch(error => console.error(`ClickWorthy: Network error sending request for ${videoData.title}:`, error));
 }
 
 
@@ -473,28 +468,27 @@ function pollForScore(requestId, containerElement) {
         'Origin': 'chrome-extension://fbdemagnbjffdanpndebkpojkmllolho' // IMPORTANT: Your Extension ID
       }
     })
-    .then(response => response.json())
-    .then(data => {
-      if (data.status === "completed") {
-        clearInterval(pollInterval); // Stop polling
-        const scores = {
-          titleScore: data.titleScore,
-          imageScore: data.imageScore
-        };
-        cachedScores.set(requestId, scores); // Cache the received scores
-        console.log(`ClickWorthy: Scores received for Request ID ${requestId}: Title=${data.titleScore}, Image=${data.imageScore}`);
-        applyHoverEffect(containerElement, scores); // Apply final color with both scores
-      } else if (data.status === "pending") {
-        // Keep polling
-      } else {
-        clearInterval(pollInterval); // Stop polling on error
-        console.error(`ClickWorthy: Error polling for score for Request ID ${requestId}:`, data.message);
-      }
-    })
-    .catch(error => {
-      clearInterval(pollInterval); // Stop polling on network error
-      console.error(`ClickWorthy: Network error polling for score for Request ID ${requestId}:`, error);
-    });
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === "completed") {
+          clearInterval(pollInterval); // Stop polling
+          const scores = {
+            titleScore: data.titleScore,
+            imageScore: data.imageScore
+          };
+          cachedScores.set(requestId, scores); // Cache the received scores
+          applyHoverEffect(containerElement, scores); // Apply final color with both scores
+        } else if (data.status === "pending") {
+          // Keep polling
+        } else {
+          clearInterval(pollInterval); // Stop polling on error
+          console.error(`ClickWorthy: Error polling for score for Request ID ${requestId}:`, data.message);
+        }
+      })
+      .catch(error => {
+        clearInterval(pollInterval); // Stop polling on network error
+        console.error(`ClickWorthy: Network error polling for score for Request ID ${requestId}:`, error);
+      });
   }, 1000); // Poll every 1 second
 }
 
@@ -504,7 +498,7 @@ function generateUniqueId() {
 
 // This function is now only on the backend (in kafka_consumer.py)
 function getClickbaitScore() {
-    return 0; // Dummy value, calculation is backend
+  return 0; // Dummy value, calculation is backend
 }
 
 
@@ -519,9 +513,15 @@ function getVideoTitlesAndAnalyze() {
 
     // Determine title and thumbnail element based on container type
     if (item.tagName === 'YTD-RICH-ITEM-RENDERER') {
-      titleElement = item.querySelector('#video-title');
+      // Try multiple selectors for regular videos (YouTube changes their structure)
+      titleElement = item.querySelector('#video-title') ||
+        item.querySelector('a#video-title-link') ||
+        item.querySelector('yt-formatted-string#video-title') ||
+        item.querySelector('h3 a');
       // Corrected selector for regular video thumbnails based on your provided HTML
-      const imgElement = item.querySelector('a#thumbnail yt-image img.yt-core-image');
+      const imgElement = item.querySelector('a#thumbnail yt-image img.yt-core-image') ||
+        item.querySelector('img.yt-core-image') ||
+        item.querySelector('ytd-thumbnail img');
       thumbnailUrl = imgElement ? imgElement.src : null;
     } else if (item.tagName === 'YTM-SHORTS-LOCKUP-VIEW-MODEL-V2') {
       titleElement = item.querySelector('h3.shortsLockupViewModelHostMetadataTitle a span[role="text"]');
@@ -534,15 +534,18 @@ function getVideoTitlesAndAnalyze() {
       const title = titleElement.textContent.trim();
       const videoId = title; // Simplified video ID for caching; for production use actual YouTube video ID
 
+      console.log(`ClickWorthy: Sending for analysis: "${title.substring(0, 40)}..."`);
+
       // Only process if this video hasn't been processed or is not pending
       if (!cachedScores.has(videoId) || cachedScores.get(videoId) === null) {
         const videoData = { title: title, thumbnailUrl: thumbnailUrl, videoId: videoId }; // Include videoId for caching
         cachedScores.set(videoId, null); // Mark as pending
         sendAnalysisRequest(videoData, containerElement);
       } else if (cachedScores.get(videoId) !== null) {
-          // If already analyzed and cached, apply effect directly
-          applyHoverEffect(containerElement, cachedScores.get(videoId));
+        // If already analyzed and cached, apply effect directly
+        applyHoverEffect(containerElement, cachedScores.get(videoId));
       }
+    } else {
     }
   });
 }
@@ -552,7 +555,7 @@ function observeDOM() {
   const targetNode = document.querySelector('ytd-app'); // Observe the entire app container
   const config = { childList: true, subtree: true };
 
-  const observer = new MutationObserver(function(mutationsList, observer) {
+  const observer = new MutationObserver(function (mutationsList, observer) {
     let shouldAnalyze = false;
     for (let mutation of mutationsList) {
       if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
